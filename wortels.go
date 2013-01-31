@@ -289,8 +289,8 @@ func shasum(path string, shasums *map[string]string) {
 	}
 	b, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput()
 	if err != nil {
-		// Cygwin shasum seems to exit status 1 even if there's no error? 
-		if !((err.Error() == "exit status 1") && (runtime.GOOS == "windows")) {
+		// newer shasum seems to exit status 1 even if there's no error?
+		if err.Error() != "exit status 1" {
 			panic(err)
 		}
 	}
