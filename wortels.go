@@ -33,6 +33,9 @@ var (
 	// Platform specific stuff, will be configured in main
 	shellForCommands      = ""
 	shasumResultSeparator = ""
+	// Shared among goroutines
+	appDir = "" // where is wortels itself
+	cacheDir = "" // where to save packaged stuff
 )
 
 func main() {
@@ -43,7 +46,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Parse manifest files
+	// Parse manifest files	parseManifestFiles
 	manifestFiles := flag.Args()
 	if len(manifestFiles) == 0 {
 		flag.Usage()
@@ -79,8 +82,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	appDir := filepath.Join(user.HomeDir, ".wortels")
-	cacheDir := filepath.Join(appDir, "cache", *jsCompressor)
+	appDir = filepath.Join(user.HomeDir, ".wortels")
+	cacheDir = filepath.Join(appDir, "cache", *jsCompressor)
 	if err := os.MkdirAll(cacheDir, 0777); err != nil {
 		panic(err)
 	}
@@ -156,6 +159,13 @@ func main() {
 		fmt.Printf("Files to compile: %v (%d)\n", compilationList, len(compilationList))
 	}
 
+	compile(compilationList, shasums, files)
+}
+
+// compilationList - queue of unique files that must be compiled
+// shasums - sha sum dictionary of the files (with unsorted keys)
+// files - manifest file lists
+func compile(compilationList []string, shasums map[string]string, files map[string][]string) {
 	// Compile
 	// http://closure-compiler.googlecode.com/files/compiler-latest.zip
 	if len(compilationList) > 0 {
@@ -234,8 +244,7 @@ func main() {
 		if *verbose {
 			fmt.Printf("%v\n", cmd)
 		}
-		_, err = exec.Command(shellForCommands, "-c", cmd).CombinedOutput()
-		if err != nil {
+		if _, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput(); err != nil {
 			panic(err)
 		}
 		outputFiles = append(outputFiles, outputFile)
@@ -257,8 +266,7 @@ func main() {
 			if *verbose {
 				fmt.Printf("%v\n", cmd)
 			}
-			_, err = exec.Command(shellForCommands, "-c", cmd).CombinedOutput()
-			if err != nil {
+			if _, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput(); err != nil {
 				panic(err)
 			}
 		}
