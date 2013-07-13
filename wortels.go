@@ -46,7 +46,7 @@ func main() {
 	// Parse manifest files
 	manifestFiles := flag.Args()
 	if len(manifestFiles) == 0 {
-		fmt.Printf("Specify the manifest file(s) to process\n")
+		flag.Usage()
 		os.Exit(1)
 	}
 	if *verbose {
