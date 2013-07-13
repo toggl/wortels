@@ -28,6 +28,7 @@ var (
 	digest         = flag.String("digest", "", "inject digest into output file names")
 	generateDigest = flag.Bool("generatedigest", false, "generate digest from the output source")
 	assetPath      = flag.String("assetpath", "", "set assetpath if your assets are not on the path specified in manifest")
+	// FIXME: use compiler name instead, like this: --compiler
 	jsCompressor   = flag.String("jscompressor", "closure", "javascript compiler: closure or uglifyjs")
 	// Platform specific stuff, will be configured in main
 	shellForCommands      = ""
@@ -125,6 +126,7 @@ func main() {
 			dirs[filepath.Dir(file)] = true
 		}
 	}
+	// FIXME: run concurrently
 	for dir, _ := range dirs {
 		shasum(filepath.Join(dir, "*"), &shasums)
 	}
@@ -281,6 +283,7 @@ func injectDigest(outputFile, digest string) string {
 	return strings.Replace(outputFile, currentExt, newExt, -1)
 }
 
+// FIXME: use go for reading files and sha hashing content.
 func shasum(path string, shasums *map[string]string) {
 	portablePath := filepath.ToSlash(path)
 	cmd := fmt.Sprintf("shasum %s", portablePath)
