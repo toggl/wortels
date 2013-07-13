@@ -296,7 +296,7 @@ func shasum(path string, shasums *map[string]string) {
 	}
 	for _, shasumResult := range strings.Split(string(b), "\n") {
 		if shasumResult != "" {
-			// Ignore shasum messages a la 
+			// Ignore shasum messages a la
 			// shasum: foo/bar: Is a directory
 			if !strings.HasPrefix(shasumResult, "shasum: ") && !strings.HasSuffix(shasumResult, "Is a directory") {
 				fields := strings.Split(shasumResult, shasumResultSeparator)
