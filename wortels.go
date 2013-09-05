@@ -42,7 +42,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("%v\n", Version)
+		fmt.Println(Version)
 		os.Exit(0)
 	}
 
@@ -53,7 +53,7 @@ func main() {
 		os.Exit(1)
 	}
 	if *verbose {
-		fmt.Printf("Manifest files: %v (%d)\n", manifestFiles, len(manifestFiles))
+		fmt.Println("Manifest files:", manifestFiles, len(manifestFiles))
 	}
 
 	if runtime.GOOS == "windows" {
@@ -73,7 +73,7 @@ func main() {
 
 	// Validate js compiler
 	if *jsCompressor != "closure" && *jsCompressor != "uglifyjs" {
-		fmt.Printf("Invalid Javascript compiler: '%s'", jsCompressor)
+		fmt.Println("Invalid Javascript compiler", jsCompressor)
 		os.Exit(1)
 	}
 
@@ -118,7 +118,7 @@ func main() {
 		}
 	}
 	if *verbose {
-		fmt.Printf("File list: %v (%d)\n", files, len(files))
+		fmt.Println("File list:", files, len(files))
 	}
 
 	// Populate shasums dictionary
@@ -134,7 +134,7 @@ func main() {
 		shasum(filepath.Join(dir, "*"), &shasums)
 	}
 	if *verbose {
-		fmt.Printf("SHA database: %v (%d)\n", shasums, len(shasums))
+		fmt.Println("SHA database:", shasums, len(shasums))
 	}
 
 	// Find out which files need to be recompiled
@@ -156,7 +156,7 @@ func main() {
 		compilationList = append(compilationList, file)
 	}
 	if *verbose {
-		fmt.Printf("Files to compile: %v (%d)\n", compilationList, len(compilationList))
+		fmt.Println("Files to compile:", compilationList, len(compilationList))
 	}
 
 	compile(compilationList, shasums, files)
@@ -176,11 +176,11 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 		}
 		cmd := jsCompileCommand(portableCompilationList, appDir)
 		if *verbose {
-			fmt.Printf("%v\n", cmd)
+			fmt.Println(cmd)
 		}
 		b, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput()
 		if err != nil {
-			fmt.Printf("%v\n", string(b))
+			fmt.Println("%v\n", string(b))
 			os.Exit(1)
 		}
 
@@ -201,7 +201,7 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 				sha := shasums[file]
 				cached := filepath.Join(cacheDir, sha)
 				if *verbose {
-					fmt.Printf("%v (%s)\n", file, sha)
+					fmt.Println(file, sha)
 				}
 				currentFile, err = os.Create(cached)
 				if err != nil {
@@ -221,7 +221,7 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 			currentFile.Close()
 		}
 		if *verbose {
-			fmt.Printf("JS compiled in %v\n", time.Since(compilationStart))
+			fmt.Println("JS compiled in, ", time.Since(compilationStart))
 		}
 	}
 
@@ -242,7 +242,7 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 		portableOutputFile := filepath.ToSlash(outputFile)
 		cmd := fmt.Sprintf("cat %s > %s", inputFiles, portableOutputFile)
 		if *verbose {
-			fmt.Printf("%v\n", cmd)
+			fmt.Println(cmd)
 		}
 		if _, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput(); err != nil {
 			panic(err)
@@ -250,7 +250,7 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 		outputFiles = append(outputFiles, outputFile)
 	}
 	if *verbose {
-		fmt.Printf("Output files: %v\n", outputFiles)
+		fmt.Println("Output files:", outputFiles)
 	}
 
 	// Inject digests into output filenames, if no digest is given
@@ -264,7 +264,7 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 			renamedFile := injectDigest(outputFile, sha1)
 			cmd := fmt.Sprintf("mv %s %s", outputFile, renamedFile)
 			if *verbose {
-				fmt.Printf("%v\n", cmd)
+				fmt.Println(cmd)
 			}
 			if _, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput(); err != nil {
 				panic(err)
@@ -296,7 +296,7 @@ func shasum(path string, shasums *map[string]string) {
 	portablePath := filepath.ToSlash(path)
 	cmd := fmt.Sprintf("shasum %s", portablePath)
 	if *verbose {
-		fmt.Printf("%v\n", cmd)
+		fmt.Println(cmd)
 	}
 	b, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput()
 	if err != nil {
