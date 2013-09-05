@@ -1,5 +1,5 @@
-wortels
-=======
+How to use
+==========
 
 An asset packager, similar to Rails asset pipeline. Assets are listed in a **manifest file**, like this:
 
@@ -21,3 +21,12 @@ SHA1 hashes have changed, which triggers re-packaging of the changed files).
 
 Currently only Closure compiler is supported, but the code can easily be modified to support other
 compilers as well.
+
+Install
+=======
+Clone the repo, then in the cloned repo folder:
+
+```
+make
+make install
+```
