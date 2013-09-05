@@ -143,7 +143,7 @@ func main() {
 		for _, file := range files[manifest] {
 			sha, knownFile := shasums[file]
 			if !knownFile {
-				panic(fmt.Sprintf("File not found in SHA1 database: '%v'\n", file))
+				panic(fmt.Sprintf("File mentioned in manifest not found in wortels SHA1 database: '%v'. Please check the file really exists!", file))
 			}
 			cached := filepath.Join(cacheDir, sha)
 			if !fileExists(cached) {
