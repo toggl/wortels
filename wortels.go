@@ -46,16 +46,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Parse manifest files	parseManifestFiles
-	manifestFiles := flag.Args()
-	if len(manifestFiles) == 0 {
-		flag.Usage()
-		os.Exit(1)
-	}
-	if *verbose {
-		fmt.Println("Manifest files:", manifestFiles, len(manifestFiles))
-	}
-
 	if runtime.GOOS == "windows" {
 		shellForCommands = "sh"
 		shasumResultSeparator = " *"
@@ -66,34 +56,49 @@ func main() {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
+	err := execute()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func execute() error {
 	// Create out dir (public/assets)
 	if err := os.MkdirAll(*outdir, 0777); err != nil {
-		panic(err)
+		os.Exit(1)
 	}
 
 	// Validate js compiler
 	if *jsCompressor != "closure" && *jsCompressor != "uglifyjs" {
-		fmt.Println("Invalid Javascript compiler", jsCompressor)
-		os.Exit(1)
+		return fmt.Errorf("Invalid Javascript compiler", jsCompressor)
 	}
 
 	// Create cache dir
 	user, err := user.Current()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	appDir = filepath.Join(user.HomeDir, ".wortels")
 	cacheDir = filepath.Join(appDir, "cache", *jsCompressor)
 	if err := os.MkdirAll(cacheDir, 0777); err != nil {
-		panic(err)
+		return err
 	}
 
+	manifestFiles := flag.Args()
+	if len(manifestFiles) == 0 {
+		flag.Usage()
+		os.Exit(1)
+	}
+	if *verbose {
+		fmt.Println("Manifest files:", manifestFiles, len(manifestFiles))
+	}
 	// Read in file list(s)
 	files := make(map[string][]string)
 	for _, manifest := range manifestFiles {
 		b, err := ioutil.ReadFile(filepath.Join(*assetPath, manifest))
 		if err != nil {
-			panic(err)
+			return err
 		}
 		for _, file := range strings.Split(string(b), "\n") {
 			file = strings.TrimSpace(file)
@@ -143,10 +148,14 @@ func main() {
 		for _, file := range files[manifest] {
 			sha, knownFile := shasums[file]
 			if !knownFile {
-				panic(fmt.Sprintf("File mentioned in manifest not found in wortels SHA1 database: '%v'. Please check the file really exists!", file))
+				return fmt.Errorf("File mentioned in manifest not found in wortels SHA1 database: '%v'. Please check the file really exists!", file)
 			}
 			cached := filepath.Join(cacheDir, sha)
-			if !fileExists(cached) {
+			exists, err := fileExists(cached)
+			if err != nil {
+				return err
+			}
+			if !exists {
 				uniqueCompilationList[file] = true
 			}
 		}
@@ -159,13 +168,13 @@ func main() {
 		fmt.Println("Files to compile:", compilationList, len(compilationList))
 	}
 
-	compile(compilationList, shasums, files)
+	return compile(compilationList, shasums, files)
 }
 
 // compilationList - queue of unique files that must be compiled
 // shasums - sha sum dictionary of the files (with unsorted keys)
 // files - manifest file lists
-func compile(compilationList []string, shasums map[string]string, files map[string][]string) {
+func compile(compilationList []string, shasums map[string]string, files map[string][]string) error {
 	// Compile
 	// http://closure-compiler.googlecode.com/files/compiler-latest.zip
 	if len(compilationList) > 0 {
@@ -195,7 +204,7 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 				}
 				i, err := strconv.Atoi(strings.Split(line, "// Input ")[1])
 				if err != nil {
-					panic(err)
+					return err
 				}
 				file := compilationList[i]
 				sha := shasums[file]
@@ -205,12 +214,12 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 				}
 				currentFile, err = os.Create(cached)
 				if err != nil {
-					panic(err)
+					return err
 				}
 				continue
 			}
 			if currentFile == nil {
-				panic(fmt.Sprintf("No file to write to! Line: %s", line))
+				return fmt.Errorf("No file to write to! Line: %s", line)
 			}
 			currentFile.Write([]byte(line))
 			if i != lastLine {
@@ -245,7 +254,7 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 			fmt.Println(cmd)
 		}
 		if _, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput(); err != nil {
-			panic(err)
+			return err
 		}
 		outputFiles = append(outputFiles, outputFile)
 	}
@@ -267,10 +276,12 @@ func compile(compilationList []string, shasums map[string]string, files map[stri
 				fmt.Println(cmd)
 			}
 			if _, err := exec.Command(shellForCommands, "-c", cmd).CombinedOutput(); err != nil {
-				panic(err)
+				return err
 			}
 		}
 	}
+
+	return nil
 }
 
 func jsCompileCommand(portableCompilationList []string, appDir string) string {
@@ -292,7 +303,7 @@ func injectDigest(outputFile, digest string) string {
 }
 
 // FIXME: use go for reading files and sha hashing content.
-func shasum(path string, shasums *map[string]string) {
+func shasum(path string, shasums *map[string]string) error {
 	portablePath := filepath.ToSlash(path)
 	cmd := fmt.Sprintf("shasum %s", portablePath)
 	if *verbose {
@@ -302,7 +313,7 @@ func shasum(path string, shasums *map[string]string) {
 	if err != nil {
 		// newer shasum seems to exit status 1 even if there's no error?
 		if err.Error() != "exit status 1" {
-			panic(err)
+			return err
 		}
 	}
 	for _, shasumResult := range strings.Split(string(b), "\n") {
@@ -313,7 +324,7 @@ func shasum(path string, shasums *map[string]string) {
 				fields := strings.Split(shasumResult, shasumResultSeparator)
 
 				if len(fields) < 2 {
-					panic(fmt.Sprintf("Unexpected shasum result with separator '%s': '%v'\n", shasumResultSeparator, shasumResult))
+					fmt.Errorf("Unexpected shasum result with separator '%s': '%v'\n", shasumResultSeparator, shasumResult)
 				}
 				sha := fields[0]
 				file := filepath.FromSlash(fields[1])
@@ -321,15 +332,15 @@ func shasum(path string, shasums *map[string]string) {
 			}
 		}
 	}
+	return nil
 }
 
-func fileExists(path string) bool {
+func fileExists(path string) (bool, error) {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			return false
-		} else {
-			panic(err)
+			return false, nil
 		}
+		return false, err
 	}
-	return true
+	return true, nil
 }
